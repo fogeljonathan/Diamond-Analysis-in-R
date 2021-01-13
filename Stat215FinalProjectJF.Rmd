@@ -1,0 +1,370 @@
+---
+title: "MAT 215 Final Project"
+author: "Jonathan Fogel"
+date: "11/30/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.align = "center",
+  fig.width = 6, fig.height = 3)
+
+library("mosaic")
+
+
+```
+
+### Introduction
+
+Diamonds are among the most coveted gems, although not necessarily the rarest. This demand, however, makes diamonds very valuable, with an average diamond going for almost \$4000. Within this market for diamonds, there are many factors which seem to be important to a diamond's final selling price. For instance, diamonds are given labels to describe their clarity, color, and the quality of their cut, which all may be factors in its selling price. In this paper, a data set with over 50,000 instances of diamonds, containing the price, weight, color, clarity, cut quality, and dimensions of each will be analyzed to create a model to estimate the price of a given diamond.
+
+### 1 Variable Statistics
+
+```{r,include=FALSE}
+## EXPLORATION FOR POINT 2 OF INSTRUCTIONS.
+summary(diamonds)
+diamonds
+densityplot(diamonds$carat,plot.points=FALSE)
+plot(diamonds$cut)
+plot(diamonds$color)
+plot(diamonds$clarity)
+densityplot(diamonds$depth,plot.points=FALSE)
+densityplot(diamonds$table,plot.points=FALSE)
+densityplot(diamonds$price,plot.points=FALSE)
+densityplot(diamonds$x,plot.points=FALSE)
+densityplot(diamonds$y,plot.points=FALSE)
+densityplot(diamonds$z,plot.points=FALSE)
+
+```
+
+
+First, we will examine variables in the data set individually. The distribution of prices is examined below.
+
+
+```{r,echo=FALSE}
+densityplot(diamonds$price,plot.points=FALSE, main='Diamond Price Distribution',xlab='Price (USD)',col='purple')
+
+```
+
+The distribution of prices is clearly right-skewed. The median price is around \$2,400, where most of the values lie, but there is a long tail, with instances of diamonds selling for as much as \$18,000. The density decays quickly as the price increases past the median, however.
+
+Another interesting distribution is that of cut qualities. Cuts are rated from "Fair" (The worst rating) to "Ideal" (The best rating). The distribution is shown below.
+
+```{r,echo=FALSE}
+
+plot(diamonds$cut,main='Diamond Cut Quality Distribution', ylab='Instances', xlab='Cut Quality')
+
+```
+
+One unfamiliar with diamonds may expect the most common cut quality to be somewhere between "Fair" and "Ideal," but this is not the case. The mode rating is actually the highest possible one, "Ideal." 
+
+The dimensions (x,y,z) of the diamonds also reveal a potential issue with the data. Specifically, the ranges for these variables are interesting.
+
+```{r}
+range(diamonds$x)
+sum(diamonds$x==0)
+```
+
+The above command shows that the minimum value for a diamond's x-dimension is zero, and that there are 8 instances of diamonds with x=0. This would mean that the diamond had a length of zero mm. This, of course, is physically impossible. It is possible that the diamond was too small to measure with the equipment used. Despite the cause, the measurement of zero is incorrect.
+
+A similar problem can be found in the y and z variables.
+
+```{r}
+range(diamonds$y)
+sum(diamonds$y==0)
+```
+
+```{r}
+range(diamonds$z)
+sum(diamonds$z==0)
+```
+
+It appears that there are 7 instances of diamonds with y=0, and 20 instances of diamonds with z=0.
+
+The rest of the variables do not appear noteworthy when analyzed alone. 
+
+### Price Vs. Carat
+
+```{r,include=FALSE}
+## EXPLORATION FOR POINT 3 OF INSTRUCTIONS
+
+plot(price~carat,data=diamonds, pch=20, cex=.1)
+plot(log(price)~carat,data=diamonds, pch=20, cex=.1)
+plot(price~log(carat),data=diamonds, pch=20, cex=.1)
+plot(log(price)~log(carat),data=diamonds, pch=20, cex=.1)
+
+```
+
+We will now examine the most obvious factor for price: the weight (in carats) of the diamond. First, price will simply be plotted against weight on linear scales.
+
+```{r,echo=FALSE}
+plot(price~carat,data=diamonds, pch=20, cex=.1,col='purple',main='Diamond Prices vs. Weight',ylab='Price (USD)', xlab='Weight (Carat)')
+```
+
+This plot is interesting. The general trend seems to curve upward, and there seems to be a high variability in price for diamonds of about 1, 1.5, and 2 carats, in particular. This manifests itself graphically as vertical lines at these values.
+
+This upward-opening trend suggests that there may be a logarithmic relationship between the two variables. To test this, we plot price as a function of $ln(weight)$, $ln(price)$ as a function of weight, and $ln(price)$ as a function of $ln(weight)$. We then determine which of these plots is the most linear to determine the most useful transformation for the model. The plots are shown below.
+
+```{r,echo=FALSE}
+plot(log(price)~carat,data=diamonds, pch=20, cex=.1,col='purple',main='Transformed Diamond Prices vs. Weight',ylab='Ln(Price) (USD)', xlab='Weight (Carat)')
+
+plot(price~log(carat),data=diamonds, pch=20, cex=.1,col='purple',main='Diamond Prices vs. Transformed Weight',ylab='Price (USD)', xlab='Ln(Weight) (Carat)')
+
+plot(log(price)~log(carat),data=diamonds, pch=20, cex=.1,col='purple',main='Transformed Diamond Prices vs. Transformed Weight',ylab='Ln(Price) (USD)', xlab='Ln(Weight) (Carat)')
+```
+
+Clearly, from the graphs above, the most linear relationship is that of $ln(price)$ as a function of $ln(weight)$. The residuals in this plot still have slight patterns of vertical lines, but the patterns appear to be even stronger in the other transformations of the data. This suggests that there is a log-log relationship between price and weight.
+
+### Weight and Volume's Impact on Price
+
+```{r,include=FALSE}
+## PART 4 OF INSTRUCTIONS
+diamonds$volume=as.double(diamonds$x*diamonds$y*diamonds$z)
+diamondsbiggerthanzero<-subset(diamonds,volume>0)
+
+rsquared(lm(log(price)~volume,data=diamondsbiggerthanzero))
+rsquared(lm(price~log(volume),data=diamondsbiggerthanzero))
+rsquared(lm(log(price)~log(volume),data=diamondsbiggerthanzero))
+rsquared(lm(price~volume,data=diamondsbiggerthanzero))
+
+rsquared(lm(log(price)~carat,data=diamonds))
+rsquared(lm(price~log(carat),data=diamonds))
+rsquared(lm(log(price)~log(carat),data=diamonds))
+rsquared(lm(price~carat,data=diamonds))
+
+cor(volume~carat,data=diamonds)
+```
+
+Since the data includes measurements in 3 dimensions for each diamond, it is possible to create a basic model for each diamond's volume. The diamonds of the data set are all "round cut," so approximating them all as rectangular prisms is not a perfect model, but it is effective as an estimate. We will now create a variable, volume, defined to be $Volume=xyz$. 
+
+A plot of volume vs. price is shown below.
+
+```{r,echo=FALSE}
+plot(price~volume,data=diamonds, pch=20, cex=.1,col='purple',main='Diamond Prices vs. Volume',ylab='Price (USD)', xlab='Volume (mm^3)')
+```
+
+Similar to the initial plot of price vs. weight, this plot appears to open upwards, suggesting a logarithmic relationship. However, because of the instances of x,y, and z that are zero, the volume of these diamonds would be zero as well using the above formula. If we were to perform a logarithmic transformation on these points, $Ln(0)=Und.$, so these points are omitted.
+
+A similar process to what was done to weight is done to see that the most accurate relationship is a log-log relationship. A plot of this is shown below.
+
+```{r}
+plot(log(price)~log(volume),data=diamondsbiggerthanzero, pch=20, cex=.1,col='purple',main='Diamond Prices vs. Volume',ylab='Ln(Price) (USD)', xlab='Ln(Volume) (mm^3)')
+```
+
+However, since diamonds are generally a similar density, there may be a high correlation between volume and weight. To check for redundancy, this is shown below.
+
+```{r}
+cor(volume~carat,data=diamonds)
+```
+
+There is a .98 correlation between the two variables, which means that analyzing them against price separately is redundant, as they convey very similar information. To check which one gives us a better linear fit, $R^2$ is measured for both models.
+
+```{r}
+rsquared(lm(log(price)~log(volume),data=diamondsbiggerthanzero))
+```
+
+```{r}
+rsquared(lm(log(price)~log(carat),data=diamonds))
+```
+Both models have high $R^2$ values, which is good for the model's sake. It makes sense, given their high correlation, that their $R^2$ values are very similar. The models have practically the same value for $R^2$, so it appears that neither is better than the other when modeling price. Because of this, only one has to be taken into account in future models.
+
+### Approximating Volume, Revisited
+
+```{r,include=FALSE}
+#PART 5 OF INSTRUCTIONS
+
+anova(lm(volume~x,data=diamonds))
+anova(lm(volume~y,data=diamonds))
+anova(lm(volume~z,data=diamonds))
+rsquared(lm(volume~x,data=diamonds))
+rsquared(lm(volume~y,data=diamonds))
+rsquared(lm(volume~z,data=diamonds))
+```
+
+Since the diamonds of the data set are all round cut, there may be a simpler approximation for volume. One surface of a round cut diamond is a circle, so it may be enough to approximate volume as a sphere, which would then only depend on one of the dimensional measurements: x, y and z. To test the influence that each one of these variables has on volume, we will use ANOVA tests. This will determine the variability in our previous model of volume that can be explained by each of the individual measurements. For the tests, we examine volume as a function of each measurement individually, so we do not have to worry about the order of variables in the ANOVA test. These 3 tests are shown below.
+
+```{r}
+anova(lm(volume~x,data=diamonds))
+```
+
+```{r}
+anova(lm(volume~y,data=diamonds))
+```
+
+```{r}
+anova(lm(volume~z,data=diamonds))
+
+```
+
+From each of these tests, the sum of squares is 330231870. The first test shows that x accounts for 92\% of the sum of squares, y accounts for 95\%, and z accounts for 90\%. This shows that y accounts for much of the variability of the volume estimation, and so we could use y in its stead with little effect. 
+
+Another way to measure y's contribution to volume's variability is by creating a linear fit between the two and measuring its $R^2$ value. A high value shows that y accounts for volume's variability. This is done for y below.
+
+```{r}
+rsquared(lm(volume~y,data=diamonds))
+```
+
+This is a high value, which concurs with the ANOVA tests. Although y is a good approximation for volume, it does not account for all of volume's variability, and so volume will continue to be used.
+
+### Color and Clarity
+
+```{r,include=FALSE}
+#PART 6 OF INSTRUCTIONS
+
+boxplot(log(price)~color,data=diamonds)
+boxplot(log(price)~clarity,data=diamonds)
+
+ddiamonds<-subset(diamonds, color=='D')
+ediamonds<-subset(diamonds, color=='E')
+fdiamonds<-subset(diamonds, color=='F')
+gdiamonds<-subset(diamonds, color=='G')
+hdiamonds<-subset(diamonds, color=='H')
+idiamonds<-subset(diamonds, color=='I')
+jdiamonds<-subset(diamonds, color=='J')
+
+diamonds1<-subset(diamonds, clarity=='IF')
+diamonds2<-subset(diamonds, clarity=='VVS1')
+diamonds3<-subset(diamonds, clarity=='VVS2')
+diamonds4<-subset(diamonds, clarity=='VS1')
+diamonds5<-subset(diamonds, clarity=='VS2')
+diamonds6<-subset(diamonds, clarity=='SI1')
+diamonds7<-subset(diamonds, clarity=='SI2')
+diamonds8<-subset(diamonds, clarity=='I1')
+
+
+
+densityplot(ddiamonds$carat,plot.points=FALSE)
+densityplot(ediamonds$carat,plot.points=FALSE)
+densityplot(fdiamonds$carat,plot.points=FALSE)
+densityplot(gdiamonds$carat,plot.points=FALSE)
+densityplot(hdiamonds$carat,plot.points=FALSE)
+densityplot(idiamonds$carat,plot.points=FALSE)
+densityplot(jdiamonds$carat,plot.points=FALSE)
+
+densityplot(diamonds1$carat,plot.points=FALSE)
+densityplot(diamonds2$carat,plot.points=FALSE)
+densityplot(diamonds3$carat,plot.points=FALSE)
+densityplot(diamonds4$carat,plot.points=FALSE)
+densityplot(diamonds5$carat,plot.points=FALSE)
+densityplot(diamonds6$carat,plot.points=FALSE)
+densityplot(diamonds7$carat,plot.points=FALSE)
+densityplot(diamonds8$carat,plot.points=FALSE)
+
+```
+
+Other factors that seems as though they would have a large impact on a diamond's selling price are the clarity and color of the diamond. A diamond's color is rated between D (most desirable) and J (least desirable). A diamond's clarity is rated between I1 (least desirable) and IF (most desirable) Box plots of $Ln(price)$ vs. each color / clarity are shown below.
+
+```{r,echo=FALSE}
+boxplot(log(price)~color,data=diamonds,col='purple',main='Diamond Price vs. Color',xlab = 'Color',ylab='Ln(Price) (USD)')
+boxplot(log(price)~clarity,data=diamonds,col='purple',main='Diamond Price vs. Clarity',xlab = 'Clarity',ylab='Ln(Price) (USD)')
+```
+
+These plots show an interesting pattern. It seems that the more desirable the color, the lower the average selling price! There is a similar story with clarity, as the higher clarity diamonds also tend to have lower selling prices. One would expect the exact opposite.
+
+While this seems backwards, there is an explanation. 
+
+Below are density plots of weight for the most/ intermediate/ least desirable diamond color.
+
+```{r,echo=FALSE}
+densityplot(ddiamonds$carat,plot.points=FALSE,col='purple',main='D-Colored Diamond Distribution',xlab='Weight (Carat)')
+
+densityplot(fdiamonds$carat,plot.points=FALSE,col='purple',main='F-Colored Diamond Distribution',xlab='Weight (Carat)')
+
+densityplot(jdiamonds$carat,plot.points=FALSE,col='purple',main='J-Colored Diamond Distribution',xlab='Weight (Carat)')
+
+
+```
+
+These plots show that the less desirable colors are more likely to be heavier. As we know from the previous sections, the weight of the diamond has a large influence on the price. So the worse colors are generally larger, so it makes sense that they would cost more on average.
+
+A similar story is told by the clarity of the diamonds. Below are similar density plots for the most/ intermediate/ least desirable diamond clarity.
+
+```{r,echo=FALSE}
+densityplot(diamonds1$carat,plot.points=FALSE,col='purple',main='IF Clarity Diamond Distribution',xlab='Weight (Carat)')
+
+densityplot(diamonds5$carat,plot.points=FALSE,col='purple',main='VS2 Clarity Diamond Distribution',xlab='Weight (Carat)')
+
+densityplot(diamonds8$carat,plot.points=FALSE,col='purple',main='I1 Clarity Diamond Distribution',xlab='Weight (Carat)')
+
+
+```
+
+These plots show that the less desirable clarities are more likely to be heavier. So the worse clarities are generally larger, so it also makes sense that they would cost more on average.
+
+So worse colors/clarities are actually more expensive on average, as they are larger on average.
+
+### Diamond Price Model
+
+```{r,include=FALSE}
+#PART 7 OF THE INSTRUCTIONS
+
+b<-lm(log(price)~log(carat)+clarity+color+cut,data=diamonds)
+b
+rsquared(b)
+anova(b)
+```
+
+We will now attempt to create a model for price. First, we will create a model using all of the seemingly important factors, and run an ANOVA test to see which are important.
+
+```{r}
+b<-lm(log(price)~log(carat)+clarity+color+cut,data=diamonds)
+
+anova(b)
+
+rsquared(b)
+```
+
+From the ANOVA test, you can see that the cut of the diamond is not affecting the model very much, and the color is explaining minimal variability as well. We will then create a new model omitting these variables.
+
+```{r}
+c<-lm(log(price)~log(carat)+clarity,data=diamonds)
+
+anova(c)
+rsquared(c)
+```
+
+So the new model is:
+
+$price=1.81(carat)*e^{8.50+0.90(SI2)-0.27(SI1)+0.15(VS1)-0.09(VS2)+0.04(VVS2)+.01(VVS1)+0.05(I1)}$
+
+where each clarity level is equal to 1 if it the diamond is that level, and 0 if it is not. This new model's ANOVA test shows that all the variables are important, and its $R^2$ is 0.97, which is quite high. 
+
+We will now attempt to predict a price for a 0.4 carat diamond with I1 clarity, E color, premium cut, 4.3 mm length, 4.3 mm width, and 2.3mm depth. Below is a 95\% confidence interval for a prediction.
+
+```{r}
+predict(c,data.frame(clarity='I1',carat=0.4),interval="confidence")
+```
+
+```{r}
+exp(1)^6.09895
+exp(1)^6.126862
+lm(price~carat,data=diamonds)
+```
+
+So using the model, we are 95\% confident that the price of this diamond is between \$ 445 and \$ 457. This number is reasonable, as 0.4 is a small weight.
+
+### Cut Quality by Clarity
+
+Most qualities of diamonds are inherent, like color, size and clarity. One quality, however, is not. The cut quality of a diamond is strictly dependent on the human who cuts it. One question to answer is whether the quality of the cut depends on any of the inherent qualities of a diamond. Specifically, we will examine there is a relationship between clarity and cut quality.
+
+Below are plots for the clarity distributions for each cut quality, from least desirable to most desirable.
+
+```{r,echo=FALSE}
+
+plot(~clarity,data=subset(diamonds,cut=='Fair'),main='Fair',ylab='Instances',xlab='Clarity (worst to best)',col='purple')
+plot(~clarity,data=subset(diamonds,cut=='Good'),main='Good',ylab='Instances',xlab='Clarity (worst to best)',col='purple')
+plot(~clarity,data=subset(diamonds,cut=='Very Good'),main='Very Good',ylab='Instances',xlab='Clarity (worst to best)',col='purple')
+plot(~clarity,data=subset(diamonds,cut=='Premium'),main='Premium',ylab='Instances',xlab='Clarity (worst to best)',col='purple')
+plot(~clarity,data=subset(diamonds,cut=='Ideal'),main='Ideal',ylab='Instances',xlab='Clarity (worst to best)',col='purple')
+
+```
+
+From the plots, it is clear that the worse quality the cut of a diamond is, the worse the clarity is, generally. For the fair cuts, the clarity at the center of the distribution is SI2. for good-premium cuts, the clarity at the center of the distribution is SI1. For ideal cuts, the clarity at the center of the distribution is VS2. 
+
+Since the cut is, presumably, not tied to any physical characteristics of the diamond, it seems as if the reason for this trend is human error. One possibility is that jewelers are less careful with the less expensive, lower clarity diamonds than they are with the better clarity diamonds.
+
+### Conclusion
+
+The price of diamonds seems to depend on many factors, but depends on weight (or volume) most of all. There also seems to be significant dependence on the clarity of the diamond, and a small impact made by the color of the diamond.
